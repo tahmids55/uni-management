@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard - University Management System</title>
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        .action-btn { padding: 6px 12px; border: none; border-radius: 4px; color: white; font-weight: bold; cursor: pointer; font-size: 13px; margin-right: 5px; }
+        .btn-edit { background: #2563eb; }
+        .btn-edit:hover { background: #1d4ed8; }
+        .btn-delete { background: #dc2626; }
+        .btn-delete:hover { background: #b91c1c; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-box { background: white; padding: 25px; border-radius: 10px; width: 100%; max-width: 420px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+    </style>
+</head>
+<body>
+<nav>
+    <a href="/index.html" class="brand">Uni-Management Portal</a>
+    <div class="nav-links">
+        <span id="navWelcome" style="margin-right: 15px; font-weight: 600;"></span>
+        <button onclick="logout()">Logout</button>
+    </div>
+</nav>
+
+<div class="container">
+    <!-- 1. MY PROFILE CARD (VISIBLE TO ALL ROLES) -->
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3>My Profile</h3>
+            <div>
+                <span id="profileRoleBadge" class="badge" style="margin-right: 10px;"></span>
+                <button class="action-btn btn-edit" id="editMyProfileBtn">Edit My Profile</button>
+                <button class="action-btn btn-delete" id="deleteMyAccountBtn" style="display: none;">Delete My Account</button>
+            </div>
+        </div>
+        <table>
+            <tr><th>User ID</th><td id="profId"></td></tr>
+            <tr><th>Username</th><td id="profUser"></td></tr>
+            <tr><th>Full Name</th><td id="profName"></td></tr>
+            <tr><th>Department</th><td id="profDept"></td></tr>
+        </table>
+    </div>
+
+    <!-- 2. STUDENT NOTICE CARD -->
+    <div id="studentNoticeCard" class="card" style="display: none;">
+        <h3>Student Access Level</h3>
+        <p style="color: #64748b; margin-bottom: 0;">
+            As a Student, you can view, edit, or delete your own profile above. Teacher and Student directories are restricted.
+        </p>
+    </div>
+
+    <!-- 3. TEACHERS LIST CARD (ONLY SHOWN TO ADMIN) -->
+    <div id="teachersSection" class="card" style="display: none;">
+        <h3>Teachers Directory</h3>
+        <p style="color: #64748b;">Admin Access: You can view, edit, and delete any Teacher profile below:</p>
+        <div id="teachersTableContainer"></div>
+    </div>
+
+    <!-- 4. STUDENTS LIST CARD (SHOWN TO TEACHER AND ADMIN) -->
+    <div id="studentsSection" class="card" style="display: none;">
+        <h3>Students Directory</h3>
+        <p style="color: #64748b;">Authorized Access: You can view, edit, and delete any Student profile below:</p>
+        <div id="studentsTableContainer"></div>
+    </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="editModal">
+    <div class="modal-box">
+        <h3 id="modalTitle">Edit Profile</h3>
+        <input type="hidden" id="editUserId">
+        <label>Full Name</label>
+        <input type="text" id="editFullName" placeholder="Full Name">
+        <label>Department</label>
+        <input type="text" id="editDepartment" placeholder="Department">
+        <label>New Password <small style="color:#64748b;">(Leave blank to keep current)</small></label>
+        <input type="password" id="editPassword" placeholder="Optional new password">
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+            <button class="btn-primary" onclick="saveEdit()">Save Changes</button>
+            <button class="btn-primary" style="background: #64748b;" onclick="closeEditModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let authHeader = sessionStorage.getItem('ums_auth');
+    let currentProfile = null;
+    let usersCache = {};
+
+    if (!authHeader) {
+        window.location.href = '/login.html';
+    }
+
+    async function loadDashboard() {
+        const res = await fetch('/profile/me', {
+            headers: { 'Authorization': authHeader }
+        });
+
+        if (!res.ok) {
+            sessionStorage.removeItem('ums_auth');
+            window.location.href = '/login.html';
+            return;
+        }
+
+        currentProfile = await res.json();
+        usersCache[currentProfile.id] = currentProfile;
+
+        document.getElementById('navWelcome').innerText = `${currentProfile.fullName} (${currentProfile.role.replace('ROLE_', '')})`;
+        document.getElementById('profId').innerText = currentProfile.id;
+        document.getElementById('profUser').innerText = currentProfile.username;
+        document.getElementById('profName').innerText = currentProfile.fullName;
+        document.getElementById('profDept').innerText = currentProfile.department;
+        document.getElementById('profileRoleBadge').innerText = currentProfile.role;
+
+        document.getElementById('editMyProfileBtn').onclick = () => openEditModal(currentProfile.id);
+
+        const delSelfBtn = document.getElementById('deleteMyAccountBtn');
+        if (currentProfile.role !== 'ROLE_ADMIN') {
+            delSelfBtn.style.display = 'inline-block';
+            delSelfBtn.onclick = () => deleteUser(currentProfile.id, true);
+        }
+
+        if (currentProfile.role === 'ROLE_STUDENT') {
+            document.getElementById('studentNoticeCard').style.display = 'block';
+        }
+        else if (currentProfile.role === 'ROLE_TEACHER') {
+            document.getElementById('studentsSection').style.display = 'block';
+            const sRes = await fetch('/students', { headers: { 'Authorization': authHeader } });
+            const students = await sRes.json();
+            students.forEach(u => usersCache[u.id] = u);
+            document.getElementById('studentsTableContainer').innerHTML = buildUserTable(students, '#0284c7');
+        }
+        else if (currentProfile.role === 'ROLE_ADMIN') {
+            document.getElementById('teachersSection').style.display = 'block';
+            document.getElementById('studentsSection').style.display = 'block';
+
+            const aRes = await fetch('/admin/users', { headers: { 'Authorization': authHeader } });
+            const allUsers = await aRes.json();
+            allUsers.forEach(u => usersCache[u.id] = u);
+
+            const teachers = allUsers.filter(u => u.role === 'ROLE_TEACHER');
+            const students = allUsers.filter(u => u.role === 'ROLE_STUDENT');
+
+            document.getElementById('teachersTableContainer').innerHTML = buildUserTable(teachers, '#7c3aed');
+            document.getElementById('studentsTableContainer').innerHTML = buildUserTable(students, '#0284c7');
+        }
+    }
+
+    function buildUserTable(users, badgeColor) {
+        if (!users.length) return "<p style='color: #64748b;'>No records found.</p>";
+        const rows = users.map(u => `
+                <tr>
+                    <td>${u.id}</td>
+                    <td><b>${u.username}</b></td>
+                    <td>${u.fullName || '-'}</td>
+                    <td>${u.department || '-'}</td>
+                    <td><span class="badge" style="background:${badgeColor}">${u.role.replace('ROLE_', '')}</span></td>
+                    <td>
+                        <button class="action-btn btn-edit" onclick="openEditModal(${u.id})">Edit</button>
+                        <button class="action-btn btn-delete" onclick="deleteUser(${u.id}, false)">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+        return `<table><thead><tr><th>ID</th><th>Username</th><th>Full Name</th><th>Department</th><th>Role</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>`;
+    }
+
+    function openEditModal(userId) {
+        const u = usersCache[userId];
+        document.getElementById('editUserId').value = u.id;
+        document.getElementById('modalTitle').innerText = `Edit User: ${u.username}`;
+        document.getElementById('editFullName').value = u.fullName || '';
+        document.getElementById('editDepartment').value = u.department || '';
+        document.getElementById('editPassword').value = '';
+        document.getElementById('editModal').style.display = 'flex';
+    }
+
+    function closeEditModal() {
+        document.getElementById('editModal').style.display = 'none';
+    }
+
+    async function saveEdit() {
+        const id = Number(document.getElementById('editUserId').value);
+        const fullName = document.getElementById('editFullName').value.trim();
+        const department = document.getElementById('editDepartment').value.trim();
+        const newPassword = document.getElementById('editPassword').value;
+
+        const payload = { fullName, department };
+        if (newPassword) payload.password = newPassword;
+
+        const res = await fetch(`/users/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': authHeader,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            if (id === currentProfile.id && newPassword) {
+                authHeader = "Basic " + btoa(currentProfile.username + ":" + newPassword);
+                sessionStorage.setItem('ums_auth', authHeader);
+            }
+            closeEditModal();
+            loadDashboard();
+        } else {
+            const err = await res.text();
+            alert("Error updating user: " + err);
+        }
+    }
+
+    async function deleteUser(userId, isSelf) {
+        const u = usersCache[userId];
+        const msg = isSelf
+            ? "Are you sure you want to permanently delete YOUR own account?"
+            : `Are you sure you want to delete ${u.username} (${u.fullName})?`;
+
+        if (!confirm(msg)) return;
+
+        const res = await fetch(`/users/${userId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': authHeader }
+        });
+
+        if (res.ok) {
+            if (isSelf) {
+                alert("Your account has been deleted.");
+                logout();
+            } else {
+                loadDashboard();
+            }
+        } else {
+            const err = await res.text();
+            alert("Error deleting user: " + err);
+        }
+    }
+
+    function logout() {
+        sessionStorage.removeItem('ums_auth');
+        window.location.href = '/index.html';
+    }
+
+    loadDashboard();
+</script>
+</body>
+</html>

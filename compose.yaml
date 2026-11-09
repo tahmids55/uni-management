@@ -1,0 +1,35 @@
+services:
+  postgres-db:
+    image: postgres:16-alpine
+    container_name: uni-postgres
+    environment:
+      POSTGRES_DB: unidb
+      POSTGRES_USER: uniuser
+      POSTGRES_PASSWORD: unipass
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U uniuser -d unidb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  uni-app:
+    build: .
+    container_name: uni-springboot
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+    environment:
+      # Inside Docker's internal network, the database host is "postgres-db" on port 5432!
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/unidb
+      SPRING_DATASOURCE_USERNAME: uniuser
+      SPRING_DATASOURCE_PASSWORD: unipass
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+
+volumes:
+  pgdata:

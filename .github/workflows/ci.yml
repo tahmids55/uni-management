@@ -1,0 +1,49 @@
+name: Uni-Management CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    # Spin up a real PostgreSQL 16 container for the Integration Tests
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: unidb
+          POSTGRES_USER: uniuser
+          POSTGRES_PASSWORD: unipass
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: 1. Checkout Repository Code
+        uses: actions/checkout@v4
+
+      - name: 2. Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: 3. Run Unit & Integration Tests with Maven
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5433/unidb
+          SPRING_DATASOURCE_USERNAME: uniuser
+          SPRING_DATASOURCE_PASSWORD: unipass
+          SPRING_JPA_HIBERNATE_DDL_AUTO: update
+        run: mvn test
+
+      - name: 4. Build Docker Image (Verify Dockerfile & Compose)
+        run: docker compose build

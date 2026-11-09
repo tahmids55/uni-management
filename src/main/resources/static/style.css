@@ -1,0 +1,18 @@
+* { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+body { background: #f0f2f5; margin: 0; padding: 0; color: #1c1e21; }
+nav { background: #1e3a8a; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+nav a.brand { color: white; text-decoration: none; font-size: 20px; font-weight: bold; }
+.nav-links a, .nav-links button { background: transparent; border: 1px solid white; color: white; padding: 8px 16px; border-radius: 5px; text-decoration: none; cursor: pointer; margin-left: 10px; font-weight: 600; font-size: 14px; }
+.nav-links a:hover, .nav-links button:hover { background: white; color: #1e3a8a; }
+.container { max-width: 900px; margin: 40px auto; padding: 0 20px; }
+.card { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 25px; }
+h1, h3 { margin-top: 0; color: #1e3a8a; }
+input, select { width: 100%; padding: 12px; margin: 8px 0 18px 0; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 15px; }
+.btn-primary { display: inline-block; width: 100%; text-align: center; text-decoration: none; background: #2563eb; color: white; border: none; padding: 12px; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; }
+.btn-primary:hover { background: #1d4ed8; }
+.badge { display: inline-block; padding: 5px 12px; border-radius: 20px; font-size: 13px; font-weight: bold; color: white; background: #059669; }
+table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+th, td { text-align: left; padding: 12px; border-bottom: 1px solid #e2e8f0; }
+th { background: #f8fafc; color: #475569; }
+.error-msg { color: #dc2626; font-weight: 600; margin-bottom: 15px; }
+.success-msg { color: #059669; font-weight: 600; margin-bottom: 15px; }

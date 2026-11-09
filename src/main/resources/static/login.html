@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sign In - University Management System</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<nav>
+    <a href="/index.html" class="brand">Uni-Management Portal</a>
+    <div class="nav-links">
+        <a href="/index.html">Home</a>
+        <a href="/register.html">Register</a>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="card" style="max-width: 450px; margin: auto;">
+        <h3>Sign In to Your Account</h3>
+        <div id="loginError" class="error-msg"></div>
+        <label>Username</label>
+        <input type="text" id="username" placeholder="Enter username">
+        <label>Password</label>
+        <input type="password" id="password" placeholder="Enter password">
+        <button class="btn-primary" onclick="login()">Sign In</button>
+        <p style="text-align: center; margin-top: 15px; font-size: 14px;">
+            Don't have an account? <a href="/register.html">Register here</a>
+        </p>
+    </div>
+</div>
+
+<script>
+    if (sessionStorage.getItem('ums_auth')) {
+        window.location.href = '/dashboard.html';
+    }
+
+    async function login() {
+        const u = document.getElementById('username').value.trim();
+        const p = document.getElementById('password').value;
+        const authHeader = "Basic " + btoa(u + ":" + p);
+
+        const res = await fetch('/profile/me', {
+            headers: { 'Authorization': authHeader }
+        });
+
+        if (res.ok) {
+            sessionStorage.setItem('ums_auth', authHeader);
+            window.location.href = '/dashboard.html';
+        } else {
+            document.getElementById('loginError').innerText = "Invalid username or password.";
+        }
+    }
+</script>
+</body>
+</html>

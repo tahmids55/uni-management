@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Register - University Management System</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<nav>
+    <a href="/index.html" class="brand">Uni-Management Portal</a>
+    <div class="nav-links">
+        <a href="/index.html">Home</a>
+        <a href="/login.html">Sign In</a>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="card" style="max-width: 500px; margin: auto;">
+        <h3>Create Student / Teacher Account</h3>
+        <div id="regMsg"></div>
+        <label>Username</label>
+        <input type="text" id="regUser" placeholder="Choose a unique username">
+        <label>Password</label>
+        <input type="password" id="regPass" placeholder="Create a password">
+        <label>Full Name</label>
+        <input type="text" id="regName" placeholder="e.g. Md. Taki Tahmid">
+        <label>Department</label>
+        <input type="text" id="regDept" placeholder="e.g. CSE">
+        <label>Select Role</label>
+        <select id="regRole">
+            <option value="ROLE_STUDENT">Student</option>
+            <option value="ROLE_TEACHER">Teacher</option>
+        </select>
+        <button class="btn-primary" onclick="register()">Register Account</button>
+    </div>
+</div>
+
+<script>
+    if (sessionStorage.getItem('ums_auth')) {
+        window.location.href = '/dashboard.html';
+    }
+
+    async function register() {
+        const payload = {
+            username: document.getElementById('regUser').value.trim(),
+            password: document.getElementById('regPass').value,
+            fullName: document.getElementById('regName').value.trim(),
+            department: document.getElementById('regDept').value.trim(),
+            role: document.getElementById('regRole').value
+        };
+
+        const res = await fetch('/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const msgBox = document.getElementById('regMsg');
+        if (res.ok) {
+            msgBox.innerHTML = `<div class="success-msg">Account created successfully. Redirecting to Sign In...</div>`;
+            setTimeout(() => window.location.href = '/login.html', 1200);
+        } else {
+            const err = await res.text();
+            msgBox.innerHTML = `<div class="error-msg">Error: ${err}</div>`;
+        }
+    }
+</script>
+</body>
+</html>

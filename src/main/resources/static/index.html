@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Home - University Management System</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<nav>
+    <a href="/index.html" class="brand">Uni-Management Portal</a>
+
+    <!-- Shown when logged OUT -->
+    <div class="nav-links" id="navGuest">
+        <a href="/login.html">Sign In</a>
+        <a href="/register.html">Register</a>
+    </div>
+
+    <!-- Shown when logged IN -->
+    <div class="nav-links" id="navUser" style="display: none;">
+        <span id="navWelcome" style="margin-right: 15px; font-weight: 600;"></span>
+        <a href="/dashboard.html">Dashboard</a>
+        <button onclick="logout()">Logout</button>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="card" style="text-align: center; padding: 50px 30px;">
+        <h1>Welcome to University Management System</h1>
+        <p style="color: #64748b; font-size: 17px; max-width: 600px; margin: 0 auto 30px auto;">
+            Role-Based Access Control Portal for Students, Teachers, and Administrators.
+        </p>
+
+        <!-- Buttons shown when logged OUT -->
+        <div id="heroGuest" style="display: flex; gap: 15px; justify-content: center; max-width: 400px; margin: auto;">
+            <a href="/login.html" class="btn-primary">Sign In</a>
+            <a href="/register.html" class="btn-primary" style="background: #0f766e;">Register</a>
+        </div>
+
+        <!-- Buttons shown when logged IN -->
+        <div id="heroUser" style="display: none; max-width: 420px; margin: auto;">
+            <p id="welcomeBanner" style="font-weight: 600; color: #059669; margin-bottom: 20px; font-size: 16px;"></p>
+            <div style="display: flex; gap: 15px; justify-content: center;">
+                <a href="/dashboard.html" class="btn-primary">Go to My Dashboard</a>
+                <button onclick="logout()" class="btn-primary" style="background: #dc2626;">Logout</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const authHeader = sessionStorage.getItem('ums_auth');
+
+    async function checkLoginSession() {
+        if (!authHeader) return;
+
+        try {
+            const res = await fetch('/profile/me', {
+                headers: { 'Authorization': authHeader }
+            });
+
+            if (res.ok) {
+                const user = await res.json();
+                const roleName = user.role.replace('ROLE_', '');
+
+                document.getElementById('navGuest').style.display = 'none';
+                document.getElementById('navUser').style.display = 'block';
+                document.getElementById('navWelcome').innerText = `${user.fullName} (${roleName})`;
+
+                document.getElementById('heroGuest').style.display = 'none';
+                document.getElementById('heroUser').style.display = 'block';
+                document.getElementById('welcomeBanner').innerText = `You are currently signed in as ${user.fullName} (${roleName})`;
+            } else {
+                sessionStorage.removeItem('ums_auth');
+            }
+        } catch (e) {
+            console.error("Failed to verify session", e);
+        }
+    }
+
+    function logout() {
+        sessionStorage.removeItem('ums_auth');
+        window.location.reload();
+    }
+
+    checkLoginSession();
+</script>
+</body>
+</html>
