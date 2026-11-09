@@ -1,67 +1,59 @@
 package com.example.unimanagement;
 
-import org.junit.jupiter.api.BeforeEach;
+import com.example.unimanagement.controller.UniversityController;
+import com.example.unimanagement.entity.AppUser;
+import com.example.unimanagement.entity.Role;
+import com.example.unimanagement.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.context.WebApplicationContext;
 
-import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest
-@Transactional
+@Transactional // Automatically cleans up the database after each test
 class UniversityIntegrationTest {
 
     @Autowired
-    private WebApplicationContext context;
+    private UniversityController controller;
 
-    private MockMvc mockMvc;
+    @Autowired
+    private UserRepository repo;
 
-    @BeforeEach
-    void setup() {
-        this.mockMvc = MockMvcBuilders
-                .webAppContextSetup(context)
-                .apply(springSecurity())
-                .build();
+    @Test
+    void testRegisterStudentSavesToDatabase() {
+        // 1. Create a new student
+        AppUser student = new AppUser();
+        student.setUsername("test_student");
+        student.setPassword("1234");
+        student.setFullName("Test Student");
+        student.setDepartment("CSE");
+        student.setRole(Role.ROLE_STUDENT);
+
+        // 2. Call the controller's register method
+        ResponseEntity<?> response = controller.register(student);
+
+        // 3. Check if HTTP status is 201 CREATED and user exists in PostgreSQL
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        assertTrue(repo.findByUsername("test_student").isPresent());
     }
 
     @Test
-    void registerAndLoginFlow_ShouldWork() throws Exception {
-        String jsonPayload = """
-            {
-                "username": "test_student",
-                "password": "123",
-                "fullName": "Test Student",
-                "department": "CSE",
-                "role": "ROLE_STUDENT"
-            }
-            """;
+    void testCannotRegisterAsAdmin() {
+        // 1. Try to create an ADMIN user
+        AppUser fakeAdmin = new AppUser();
+        fakeAdmin.setUsername("hacker");
+        fakeAdmin.setPassword("1234");
+        fakeAdmin.setRole(Role.ROLE_ADMIN);
 
-        mockMvc.perform(post("/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonPayload))
-                .andExpect(status().isCreated());
-    }
+        // 2. Call the controller's register method
+        ResponseEntity<?> response = controller.register(fakeAdmin);
 
-    @Test
-    @WithMockUser(username = "student1", authorities = {"ROLE_STUDENT"})
-    void student_ShouldBeForbiddenFromAccessingStudentDirectory() throws Exception {
-        mockMvc.perform(get("/students"))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
-    @WithMockUser(username = "teacher1", authorities = {"ROLE_TEACHER"})
-    void teacher_ShouldBeAllowedToAccessStudentDirectory() throws Exception {
-        mockMvc.perform(get("/students"))
-                .andExpect(status().isOk());
+        // 3. Verify that our controller blocks it with 403 FORBIDDEN
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
     }
 }

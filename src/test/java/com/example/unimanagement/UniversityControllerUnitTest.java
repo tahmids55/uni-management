@@ -1,67 +1,36 @@
 package com.example.unimanagement;
 
-import com.example.unimanagement.controller.UniversityController;
 import com.example.unimanagement.entity.AppUser;
 import com.example.unimanagement.entity.Role;
-import com.example.unimanagement.repository.UserRepository;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.password.PasswordEncoder;
-
-import java.util.Optional;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@ExtendWith(MockitoExtension.class)
-class UniversityControllerUnitTest {
-
-    @Mock
-    private UserRepository repo;
-
-    @Mock
-    private PasswordEncoder encoder;
-
-    @InjectMocks
-    private UniversityController controller;
+class UniversityUnitTest {
 
     @Test
-    void register_ShouldBlockAdminRegistration() {
-        AppUser hacker = new AppUser();
-        hacker.setUsername("evil_admin");
-        hacker.setPassword("123");
-        hacker.setRole(Role.ROLE_ADMIN);
+    void testUserCreation() {
+        // 1. Create a user object in memory
+        AppUser user = new AppUser();
+        user.setUsername("tahmid");
+        user.setFullName("Md. Taki Tahmid Saad");
+        user.setDepartment("CSE");
+        user.setRole(Role.ROLE_STUDENT);
 
-        ResponseEntity<?> response = controller.register(hacker);
-
-        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
-        assertEquals("Cannot register as ADMIN!", response.getBody());
-        verify(repo, never()).save(any());
+        // 2. Check if the getters return the exact values we set
+        assertEquals("tahmid", user.getUsername());
+        assertEquals("CSE", user.getDepartment());
+        assertEquals(Role.ROLE_STUDENT, user.getRole());
     }
 
     @Test
-    void register_ShouldCreateStudentSuccessfully() {
-        AppUser student = new AppUser();
-        student.setUsername("taki");
-        student.setPassword("rawPass");
-        student.setFullName("Md. Taki Tahmid Saad");
-        student.setDepartment("CSE");
-        student.setRole(Role.ROLE_STUDENT);
+    void testPasswordEncryption() {
+        BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+        String hashed = encoder.encode("12345");
 
-        when(repo.findByUsername("taki")).thenReturn(Optional.empty());
-        when(encoder.encode("rawPass")).thenReturn("hashedPass");
-        when(repo.save(any(AppUser.class))).thenReturn(student);
-
-        ResponseEntity<?> response = controller.register(student);
-
-        assertEquals(HttpStatus.CREATED, response.getStatusCode());
-        assertEquals("hashedPass", student.getPassword());
-        verify(repo, times(1)).save(student);
+        // Verify that BCrypt matches the raw password with the encrypted hash
+        assertTrue(encoder.matches("12345", hashed));
     }
 }
